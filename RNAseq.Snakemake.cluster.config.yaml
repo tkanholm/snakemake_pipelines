@@ -1,0 +1,25 @@
+---
+__default__:
+  account:  # your c1 login name (everything before the '@')
+  output: outputs/{rule}.{wildcards}.%j.out
+  err: outputs/{rule}.{wildcards}.%j.err
+  p: defq,short,gpu
+  N: '1'
+  jobName: '{rule}.{wildcards.sample}'
+  time: '00:05:0'
+  mail-user:  #email address you want SLURM notifications sent to
+  mail-type: ALL
+FastQC:
+  time: '5:00:0'
+CutAdapt:
+  time: '5:00:0'
+FastQC_pass2:
+  time: '5:00:0'
+STAR:
+  time: '5:00:0'
+Telescope:
+  time: '7:00:0'
+Telescope_DESeq:
+  time: '00:10:0'
+TEtranscripts:
+  time: '10:00:0'

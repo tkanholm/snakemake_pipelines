@@ -1,0 +1,6 @@
+working_dir:  #absolute path to working directory. path must end with '/'
+raw_file_extension: 'fq.gz' #fq.gz, fastq.gz, FASTQ.gz, FQ.gz, etc. (must start AFTER the first '.') Note: this pipelines assumes raw files are gzipped fastq files!
+num_replicates: # integer number of replicates
+control_sample: 
+fw_adapter:  #Illumina universal forward adapter: long - AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC (short - AGATCGGAAG)
+rev_adapter:  #Illumina universal reverse adapter: long - AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT (short - AGATCGGAAG)
