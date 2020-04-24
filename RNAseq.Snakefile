@@ -1,5 +1,4 @@
 """
-test
 This is a snake pipeline for RNA-seq analysis of repetitive element expression. The Pipeline steps are as follows:
 
 1. Initial QC - FastQC
@@ -22,6 +21,7 @@ Folder structure:
 -Raw data should be located in folder called raw_files
 -This file, RNAseq.Snakemake.cluster.config.yaml, and RNAseq.Snakemake.config.yaml must be in the working directory
 -You need to create a new directory called output (sbatch outputs will go here)
+-All other subfolders will be created automatically
 
 TO RUN THE PIPELINE:
 1. start a new tmux session with the command tmux new-session -s <session name>
@@ -32,16 +32,22 @@ snakemake -s RNAseq.Snakefile -j 100 --configfile RNAseq.Snakemake.config.yaml -
 
 """
 TO DO:
-- add functionality for single strand
 - test that config file values are correct
-- put pipeline and config files in a new folder in .../software
-	- make the config files generic (and fail if not edited) and write-protect them 
+- make output folder automagically
+- add combine tables functionality
+	- how to handle the sample table? 
+	- option 1: make a generic one with just sample name and file name, and tell the user to add extra columns as the pipeline runs. Issue: they are on a time limit
+	- option 2: require user to make their own sample table (possibly make a template for them?) and fail if it doesnt exist
+	- option 3: make sample table optional and put the file path in the config file. Issue: no template, will have to explain what the columns need to be (file names)
+
+- add functionality for single strand
+	- can this be done with a flag, or do we need a whole new pipeline?
 """
 
 import numpy as np
 
 #configfile: 'RNAseq_snakemake.config'
-localrules: Telescope_DESeq
+localrules: Telescope_DESeq, make_sample_tables, Combine_tables_telescope, Combine_tables_TEtranscripts
 
 controlSample = config['control_sample']
 replicates = list(range(1, int(config['num_replicates']) + 1))
@@ -52,6 +58,11 @@ raw_file_ext = config['raw_file_extension']
 #run test on file naming convention
 
 SAMPLE_IDS = glob_wildcards(working_dir + 'raw_files/{sample}_{replicate}_{read}.' + raw_file_ext).sample
+# this will grab multiple of the same SAMPLE_ID (one for each replicate/read combo). Grab just the unique ones
+# convert to a set (only takes unique values)
+SAMPLE_ID_set = set(SAMPLE_IDS)
+# convert back to a list
+SAMPLE_IDS = list(SAMPLE_ID_set)
 
 print("starting Snakemake...")
 print("SAMPLE_IDS = " + str(SAMPLE_IDS))
@@ -66,8 +77,10 @@ rule all:
 		# expand(working_dir + 'cutadapt/{sample}_{replicate}_{read}.cutadapt.q20.minlen1.' + raw_file_ext, sample = SAMPLE_IDS, replicate = replicates, read = ['R1', 'R2']),
 		# expand(working_dir + 'RNAseq.STAR/RNAseq.STAR.{file}.Aligned.out.bam', file = SAMPLE_IDS),
 		# expand(working_dir + 'telescope/{sample}_{replicate}-telescope_report.tsv', sample = SAMPLE_IDS, replicate = replicates),
-		expand(working_dir + 'telescope/{sample}.telescope.count.table.DESeq2.tsv', sample = SAMPLE_IDS),
-		expand(working_dir + 'TEtranscripts/{sample}.TEtranscripts.DESeq_gene_TE_analysis.txt', sample = SAMPLE_IDS)
+		# expand(working_dir + 'telescope/{sample}.telescope.count.table.DESeq2.tsv', sample = SAMPLE_IDS),
+		# expand(working_dir + 'TEtranscripts/{sample}.TEtranscripts.DESeq_gene_TE_analysis.txt', sample = SAMPLE_IDS)
+		working_dir + 'all.samples.telescope.DESeq2.tibble.tsv',
+		working_dir + 'all.samples.TEtranscripts.DESeq2.tibble.tsv'
 
 
 rule FastQC:
@@ -186,12 +199,69 @@ rule Telescope_DESeq:
 		Rscript {output.DESeq2_script}
 
 		'''
+rule make_sample_tables:
+	input:
+	output:
+		telescope_table = working_dir + 'telescope/sample_table.txt',
+		TEtranscripts_table = working_dir + 'TEtranscripts/sample_table.txt'
+	run:
+		# telescope sample table
+		# table header
+		table_str = "DESeq_output_file" + "\t" + "Sample_name" + "\n"
 
-rule Combine_tables:
-	input: expand(working_dir + 'telescope/{sample}.telescope.count.table.DESeq2.tsv', sample = SAMPLE_IDS)
+		for sampleName in SAMPLE_IDS:
+			table_str = table_str + sampleName + ".telescope.count.table.DESeq2.tsv" "\t" + sampleName + "\n"
+
+		print("Generated sample_table for telescope. Add columns to this file with optional sample data to be added to the final " +
+			"all.samples.telescope.DESeq2.tibble.tsv output")
+		print(table_str)
+		sample_table_file = open(output.telescope_table, "w")
+		sample_table_file.write(table_str)
+
+		# telescope sample table
+		# table header
+		table_str = "DESeq_output_file" + "\t" + "Sample_name" + "\n"
+
+		for sampleName in SAMPLE_IDS:
+			table_str = table_str + sampleName + ".TEtranscripts.DESeq_gene_TE_analysis.txt" "\t" + sampleName + "\n"
+
+		print("Generated sample_table for TEtranscripts. Add columns to this file with optional sample data to be added to the final " +
+			"all.samples.telescope.DESeq2.tibble.tsv output")
+		print(table_str)
+		sample_table_file = open(output.TEtranscripts_table, "w")
+		sample_table_file.write(table_str)
+
+
+
+rule Combine_tables_telescope:
+	input: 
+		telescope_files = expand(working_dir + 'telescope/{sample}.telescope.count.table.DESeq2.tsv', sample = SAMPLE_IDS),
+		sample_table = working_dir + 'telescope/sample_table.txt',
+		script = '/groups/chiappinellilab/software/jimcdonald/make.TCGA.telescope.DESeq2.tibble.py'
 	output: working_dir + 'all.samples.telescope.DESeq2.tibble.tsv'
+	params:
+		workingDir = working_dir
 	shell:
 		'''
 		ml python
-		python /groups/chiappinellilab/software/jimcdonald/make.TCGA.telescope.DESeq2.tibble.py /lustre/groups/chiappinellilab/processed_data/melbourneBrainTumors/telescope/ -n all.samples.telescope. -x .count.table.DESeq2.tsv -a /groups/chiappinellilab/genomes/hg38/HERV_L1_rmsk.hg38.gtf  -p TRUE -s /lustre/groups/chiappinellilab/processed_data/melbourneBrainTumors/telescope/sample_table.txt
+		python {input.script} \
+		{params.workingDir}telescope/ \
+		-n all.samples.telescope -x .count.table.DESeq2.tsv -a /groups/chiappinellilab/genomes/hg38/HERV_L1_rmsk.hg38.gtf  \
+		-p TRUE -s {input.sample_table}
+		'''
+rule Combine_tables_TEtranscripts:
+	input: 
+		TEtranscripts_files = expand(working_dir + 'TEtranscripts/{sample}.TEtranscripts.DESeq_gene_TE_analysis.txt', sample = SAMPLE_IDS),
+		sample_table = working_dir + 'TEtranscripts/sample_table.txt',
+		script = '/groups/chiappinellilab/software/tkanholm/make.TCGA.telescope.DESeq2.tibble.py'
+	output: working_dir + 'all.samples.TEtranscripts.DESeq2.tibble.tsv'
+	params:
+		workingDir = working_dir
+	shell:
+		'''
+		ml python
+		python {input.script} \
+		{params.workingDir}TEtranscripts/ \
+		-n all.samples.TEtranscripts -x .count.table.DESeq2.tsv   \
+		-p TRUE -s {input.sample_table}
 		'''
