@@ -262,6 +262,6 @@ rule Combine_tables_TEtranscripts:
 		ml python
 		python {input.script} \
 		{params.workingDir}TEtranscripts/ \
-		-n all.samples.TEtranscripts -x .count.table.DESeq2.tsv   \
+		-n all.samples.TEtranscripts -x .DESeq_gene_TE_analysis.txt   \
 		-p TRUE -s {input.sample_table}
 		'''
