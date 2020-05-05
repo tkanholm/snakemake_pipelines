@@ -20,7 +20,7 @@ Raw data:
 Folder structure:
 -Raw data should be located in folder called raw_files
 -This file, RNAseq.Snakemake.cluster.config.yaml, and RNAseq.Snakemake.config.yaml must be in the working directory
--You need to create a new directory called output (sbatch outputs will go here)
+-You need to create a new directory called outputs (sbatch outputs will go here)
 -All other subfolders will be created automatically
 
 TO RUN THE PIPELINE:
