@@ -27,6 +27,9 @@ TO RUN THE PIPELINE:
 1. start a new tmux session with the command tmux new-session -s <session name>
 2. Run the following command:
 snakemake -s RNAseq.Snakefile -j 100 --configfile RNAseq.Snakemake.config.yaml --cluster-config RNAseq.Snakemake.cluster.config.yaml --cluster "sbatch -o {cluster.output} -e {cluster.err} -p {cluster.p} -N {cluster.N} -J {cluster.jobName} -t {cluster.time} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type}"
+3. Snakemake will create two sample_table.txt files located in telescope/ and TEtranscripts/. Add columns to these files with
+	any extra information about each sample. These will appear as extra columns in the final all.samples.DESeq2.tibble.tsv
+	files.
 """
 
 
@@ -34,12 +37,6 @@ snakemake -s RNAseq.Snakefile -j 100 --configfile RNAseq.Snakemake.config.yaml -
 TO DO:
 - test that config file values are correct
 - make output folder automagically
-- add combine tables functionality
-	- how to handle the sample table? 
-	- option 1: make a generic one with just sample name and file name, and tell the user to add extra columns as the pipeline runs. Issue: they are on a time limit
-	- option 2: require user to make their own sample table (possibly make a template for them?) and fail if it doesnt exist
-	- option 3: make sample table optional and put the file path in the config file. Issue: no template, will have to explain what the columns need to be (file names)
-
 - add functionality for single strand
 	- can this be done with a flag, or do we need a whole new pipeline?
 """
@@ -205,7 +202,7 @@ rule make_sample_tables:
 		telescope_table = working_dir + 'telescope/sample_table.txt',
 		TEtranscripts_table = working_dir + 'TEtranscripts/sample_table.txt'
 	run:
-		# telescope sample table
+		## telescope sample table ##
 		# table header
 		table_str = "DESeq_output_file" + "\t" + "Sample_name" + "\n"
 
@@ -218,7 +215,7 @@ rule make_sample_tables:
 		sample_table_file = open(output.telescope_table, "w")
 		sample_table_file.write(table_str)
 
-		# telescope sample table
+		## TEtranscripts sample table ##
 		# table header
 		table_str = "DESeq_output_file" + "\t" + "Sample_name" + "\n"
 
