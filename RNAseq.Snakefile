@@ -191,7 +191,7 @@ rule Telescope_DESeq:
 		ls {params.workingDir}telescope/*{params.cntrl_sample}*telescope_report.tsv > {output.cntrl_files_list}
 		
 		#  make the DESeq count table and generate a DESeq script
-		python {input.script} {output.treat_files_list} {output.cntrl_files_list} {input.annotation} {params.workingDir}telescope/ -o {wildcards.sample}.telescope.count.table
+		python {input.script} {output.cntrl_files_list} {output.treat_files_list} {input.annotation} {params.workingDir}telescope/ -o {wildcards.sample}.telescope.count.table
 		# run the generated script
 		Rscript {output.DESeq2_script}
 
